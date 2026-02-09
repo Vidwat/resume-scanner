@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobMatch: ATS Resume Scanner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0f;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+            color: #e2e8f0;
+        }
+        
+        .font-display {
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 8px 32px 0 rgba(0, 0, 0, 0.37),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-input {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-input:focus {
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 
+                0 0 20px rgba(59, 130, 246, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            outline: none;
+        }
+        
+        .glass-input::placeholder {
+            color: rgba(148, 163, 184, 0.5);
+        }
+        
+        .neon-button {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(147, 51, 234, 0.8));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 
+                0 0 20px rgba(59, 130, 246, 0.5),
+                0 0 40px rgba(59, 130, 246, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .neon-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 0 30px rgba(59, 130, 246, 0.8),
+                0 0 60px rgba(147, 51, 234, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        
+        .neon-button:active {
+            transform: translateY(0);
+        }
+        
+        .neon-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .neon-button:hover::before {
+            left: 100%;
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+        
+        .score-circle {
+            transition: all 0.5s ease-out;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .keyword-tag {
+            transition: all 0.2s;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        .keyword-tag:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+            background: rgba(59, 130, 246, 0.3);
+        }
+        
+        .missing-tag {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .missing-tag:hover {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.3);
+        }
+        
+        .grid-lines {
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        
+        .floating {
+            animation: floating 6s ease-in-out infinite;
+        }
+        
+        @keyframes floating {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.8), transparent);
+            animation: scan 2s linear infinite;
+            opacity: 0;
+        }
+        
+        @keyframes scan {
+            0% { transform: translateY(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(300px); opacity: 0; }
+        }
+        
+        .loading-text {
+            background: linear-gradient(90deg, #3b82f6, #9333ea, #3b82f6);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shine 3s linear infinite;
+        }
+        
+        @keyframes shine {
+            to { background-position: 200% center; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col grid-lines">
+
+    <!-- Header -->
+    <header class="glass-panel sticky top-0 z-50 border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/30">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-display font-bold text-white glow-text tracking-wider">JobMatch</h1>
+                    <span class="text-xs text-blue-400 uppercase tracking-widest">ATS Scanner</span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-6">
+                <button onclick="loadDemoData()" class="text-sm text-gray-400 hover:text-white font-medium transition-colors flex items-center space-x-2 group">
+                    <svg class="w-4 h-4 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    <span>Load Demo Data</span>
+                </button>
+                <div class="h-6 w-px bg-white/10"></div>
+                <span class="text-xs text-gray-500 uppercase tracking-wider">Free Analysis</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+        
+        <!-- Hero Text -->
+        <div class="text-center mb-12 floating">
+            <h2 class="text-4xl md:text-5xl font-display font-bold text-white mb-4 glow-text">Optimize Your Resume</h2>
+            <p class="text-gray-400 max-w-2xl mx-auto text-lg">Advanced ATS keyword matching with AI-powered analysis. Dark mode activated.</p>
+        </div>
+
+        <!-- Input Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            
+            <!-- Resume Input -->
+            <div class="glass-panel rounded-2xl overflow-hidden relative group">
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between relative z-10">
+                    <h3 class="font-display font-semibold text-white flex items-center tracking-wide">
+                        <span class="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg w-8 h-8 flex items-center justify-center text-sm mr-3 shadow-lg shadow-blue-500/20">01</span>
+                        Paste Your Resume
+                    </h3>
+                    <span class="text-xs text-gray-500 uppercase tracking-wider">Input</span>
+                </div>
+                <div class="p-6 relative z-10">
+                    <textarea 
+                        id="resumeInput" 
+                        class="w-full h-64 p-4 text-sm glass-input rounded-xl resize-none font-mono leading-relaxed"
+                        placeholder="Copy/paste your full resume here...&#10;&#10;Include your:&#10;• Professional Summary&#10;• Work Experience&#10;• Skills&#10;• Education&#10;• Certifications"
+                    ></textarea>
+                    <div class="mt-3 flex justify-between text-xs text-gray-500">
+                        <span id="resumeWordCount" class="font-mono">0 words</span>
+                        <span class="text-gray-600">Plain text recommended</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Job Description Input -->
+            <div class="glass-panel rounded-2xl overflow-hidden relative group">
+                <div class="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between relative z-10">
+                    <h3 class="font-display font-semibold text-white flex items-center tracking-wide">
+                        <span class="bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg w-8 h-8 flex items-center justify-center text-sm mr-3 shadow-lg shadow-purple-500/20">02</span>
+                        Job Description
+                    </h3>
+                    <span class="text-xs text-gray-500 uppercase tracking-wider">Input</span>
+                </div>
+                <div class="p-6 relative z-10">
+                    <textarea 
+                        id="jobInput" 
+                        class="w-full h-64 p-4 text-sm glass-input rounded-xl resize-none font-mono leading-relaxed"
+                        placeholder="Copy/paste the job requirements here...&#10;&#10;Include the:&#10;• Job Title&#10;• Required Skills&#10;• Responsibilities&#10;• Qualifications&#10;• Company Description"
+                    ></textarea>
+                    <div class="mt-3 flex justify-between text-xs text-gray-500">
+                        <span id="jobWordCount" class="font-mono">0 words</span>
+                        <span class="text-gray-600">Top 20 keywords extracted</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Button -->
+        <div class="flex justify-center mb-16">
+            <button 
+                onclick="runScan()" 
+                id="scanButton"
+                class="neon-button text-white px-16 py-5 rounded-2xl font-display font-bold text-lg tracking-wider flex items-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+            >
+                <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                </svg>
+                <span>INITIATE SCAN</span>
+            </button>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden text-center py-16">
+            <div class="relative inline-block mb-6">
+                <div class="w-20 h-20 rounded-full border-2 border-blue-500/30 animate-spin border-t-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)]"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 animate-pulse"></div>
+                </div>
+            </div>
+            <p class="loading-text text-xl font-display font-semibold mb-2">Analyzing Keywords</p>
+            <p class="text-gray-500 text-sm">Processing semantic patterns and calculating match vectors...</p>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden fade-in">
+            
+            <!-- Score Card -->
+            <div class="glass-panel rounded-3xl overflow-hidden mb-8 relative">
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-purple-500/10"></div>
+                <div class="p-10 text-center relative z-10">
+                    <h3 class="text-xl font-display font-semibold text-gray-300 mb-8 tracking-widest uppercase">Match Score</h3>
+                    
+                    <div class="flex justify-center items-center mb-8">
+                        <div class="relative">
+                            <svg class="w-48 h-48 transform -rotate-90 drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                                <circle cx="96" cy="96" r="88" stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="none"></circle>
+                                <circle id="scoreCircle" cx="96" cy="96" r="88" stroke="url(#gradient)" stroke-width="8" fill="none" stroke-dasharray="553" stroke-dashoffset="553" stroke-linecap="round" class="transition-all duration-1000 ease-out"></circle>
+                                <defs>
+                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#3b82f6" />
+                                        <stop offset="100%" stop-color="#9333ea" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="scorePercentage" class="text-6xl font-display font-bold text-white glow-text">0%</span>
+                                <span id="scoreLabel" class="text-sm text-gray-400 mt-2 uppercase tracking-widest">Compatibility</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="scoreFeedback" class="max-w-2xl mx-auto">
+                        <!-- Dynamic feedback inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Analysis -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Found Keywords -->
+                <div class="lg:col-span-2 glass-panel rounded-2xl p-6 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-500"></div>
+                    <h4 class="font-display font-semibold text-white mb-6 flex items-center tracking-wide">
+                        <svg class="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Keywords Detected
+                    </h4>
+                    <div id="foundKeywords" class="flex flex-wrap gap-3">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+
+                <!-- Missing Keywords -->
+                <div class="lg:col-span-1 glass-panel rounded-2xl p-6 relative overflow-hidden border-red-500/20">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-500"></div>
+                    <h4 class="font-display font-semibold text-white mb-6 flex items-center tracking-wide">
+                        <svg class="w-5 h-5 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        Critical Missing
+                    </h4>
+                    <ul id="missingKeywords" class="space-y-3 text-sm">
+                        <!-- Dynamic content -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Tips Section -->
+            <div class="mt-6 glass-panel rounded-2xl p-6 border-blue-500/20 relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5"></div>
+                <h4 class="font-display font-semibold text-white mb-4 tracking-wide relative z-10">Optimization Protocol</h4>
+                <ul class="space-y-3 text-sm text-gray-400 relative z-10">
+                    <li class="flex items-start">
+                        <span class="text-blue-400 mr-3">›</span>
+                        Integrate missing keywords naturally into your skills or experience sections
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-blue-400 mr-3">›</span>
+                        Use exact phrases from the job description for maximum ATS compatibility
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-blue-400 mr-3">›</span>
+                        Position critical keywords in your professional summary for higher weight
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+
+        <!-- Monetization Hook -->
+        <div id="monetizationBanner" class="hidden mt-8 glass-panel rounded-xl p-6 text-center border-yellow-500/20 relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-r from-yellow-500/5 via-transparent to-yellow-500/5"></div>
+            <p class="text-sm text-gray-400 relative z-10">
+                Need automated optimization?
+                <a href="#" class="text-yellow-400 font-semibold hover:text-yellow-300 ml-2 transition-colors inline-flex items-center group">
+                    Get the 'Zero-Work' Career Bundle
+                    <svg class="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+            </p>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass-panel border-t border-white/10 mt-16 py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-gray-600 text-sm">JobMatch ATS Scanner processes data locally in your browser. Secure. Private. Fast.</p>
+            <p class="mt-2 text-gray-700 text-xs">© 2024 JobMatch. All systems operational.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Word count updates
+        document.getElementById('resumeInput').addEventListener('input', function() {
+            const words = this.value.trim().split(/\s+/).filter(w => w.length > 0).length;
+            document.getElementById('resumeWordCount').textContent = words + ' words';
+        });
+
+        document.getElementById('jobInput').addEventListener('input', function() {
+            const words = this.value.trim().split(/\s+/).filter(w => w.length > 0).length;
+            document.getElementById('jobWordCount').textContent = words + ' words';
+        });
+
+        // Comprehensive keyword extraction logic
+        function extractKeywords(text) {
+            const cleanText = text.toLowerCase()
+                .replace(/[^\w\s]/g, ' ')
+                .replace(/\s+/g, ' ');
+            
+            const words = cleanText.split(' ');
+            
+            const hardSkills = [
+                'python', 'javascript', 'java', 'sql', 'react', 'angular', 'vue', 'node', 'aws', 'azure', 'gcp',
+                'docker', 'kubernetes', 'git', 'jenkins', 'ci/cd', 'html', 'css', 'php', 'ruby', 'go', 'rust',
+                'swift', 'kotlin', 'scala', 'r', 'matlab', 'sas', 'tableau', 'powerbi', 'excel', 'vba',
+                'machine learning', 'deep learning', 'ai', 'artificial intelligence', 'data analysis', 'data science',
+                'statistics', 'modeling', 'forecasting', 'etl', 'data mining', 'big data', 'hadoop', 'spark',
+                'tensorflow', 'pytorch', 'scikit-learn', 'pandas', 'numpy', 'nosql', 'mongodb', 'postgresql',
+                'mysql', 'oracle', 'sqlite', 'redshift', 'snowflake', 'databricks',
+                'project management', 'agile', 'scrum', 'kanban', 'jira', 'confluence', 'pmp', 'six sigma',
+                'lean', 'mba', 'kpis', 'okrs', 'strategy', 'operations', 'supply chain', 'logistics',
+                'procurement', 'vendor management', 'budgeting', 'forecasting', 'financial modeling',
+                'seo', 'sem', 'google analytics', 'google ads', 'facebook ads', 'social media marketing',
+                'content marketing', 'email marketing', 'hubspot', 'salesforce', 'crm', 'lead generation',
+                'market research', 'branding', 'copywriting', 'ux', 'ui', 'figma', 'sketch', 'adobe',
+                'photoshop', 'illustrator', 'indesign', 'premiere', 'after effects',
+                'cad', 'solidworks', 'autocad', 'matlab', 'simulink', 'plc', 'scada', 'iot', 'embedded',
+                'circuit design', 'pcb', 'vhdl', 'verilog', 'fpga', 'microcontrollers', 'arduino', 'raspberry pi',
+                'aws', 'azure', 'gcp', 'cloud computing', 'devops', 'sre', 'infrastructure', 'terraform',
+                'ansible', 'puppet', 'chef', 'nginx', 'apache', 'linux', 'unix', 'windows server', 'active directory',
+                'cybersecurity', 'penetration testing', 'vulnerability assessment', 'siem', 'firewall',
+                'encryption', 'ssl', 'oauth', 'ldap', 'compliance', 'gdpr', 'hipaa', 'sox', 'iso 27001'
+            ];
+            
+            const softSkills = [
+                'leadership', 'communication', 'teamwork', 'collaboration', 'problem solving', 'critical thinking',
+                'analytical', 'creativity', 'innovation', 'adaptability', 'flexibility', 'time management',
+                'organization', 'prioritization', 'multitasking', 'decision making', 'negotiation', 'conflict resolution',
+                'emotional intelligence', 'empathy', 'mentoring', 'coaching', 'presentation', 'public speaking',
+                'stakeholder management', 'client relations', 'customer service', 'interpersonal', 'detail oriented',
+                'results driven', 'self motivated', 'proactive', 'strategic thinking', 'business acumen'
+            ];
+            
+            const certifications = [
+                'pmp', 'cpa', 'cfa', 'mba', 'phd', 'aws certified', 'azure certified', 'google certified',
+                'scrum master', 'cissp', 'ceh', 'comptia', 'itil', 'six sigma', 'lean', 'cisco', 'ccna',
+                'ccnp', 'mcse', 'rhce', 'shrm', 'sphr', 'phr', 'cisa', 'cism', 'crisc', 'cipp', 'cipm'
+            ];
+            
+            const actionVerbs = [
+                'managed', 'led', 'developed', 'created', 'implemented', 'designed', 'analyzed', 'optimized',
+                'improved', 'increased', 'decreased', 'reduced', 'saved', 'generated', 'built', 'architected',
+                'engineered', 'programmed', 'coded', 'tested', 'deployed', 'maintained', 'supported', 'trained',
+                'mentored', 'coordinated', 'facilitated', 'negotiated', 'presented', 'researched', 'evaluated'
+            ];
+            
+            const jobTitles = [
+                'manager', 'director', 'vp', 'vice president', 'ceo', 'cto', 'cio', 'cfo', 'chief', 'head of',
+                'lead', 'senior', 'junior', 'associate', 'analyst', 'specialist', 'coordinator', 'administrator',
+                'engineer', 'developer', 'architect', 'consultant', 'strategist', 'coordinator', 'supervisor',
+                'principal', 'staff', 'intern', 'contractor', 'freelance'
+            ];
+            
+            const foundKeywords = new Set();
+            
+            [...hardSkills, ...softSkills, ...certifications, ...actionVerbs, ...jobTitles].forEach(keyword => {
+                if (cleanText.includes(keyword)) {
+                    foundKeywords.add(keyword);
+                }
+            });
+            
+            const wordFreq = {};
+            words.forEach(word => {
+                if (word.length > 3 && !['with', 'from', 'they', 'have', 'this', 'that', 'will', 'your', 'been', 'their', 'them', 'than', 'also', 'were', 'said', 'each', 'which', 'when', 'where', 'what', 'who', 'how', 'all', 'any', 'both', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'new', 'now', 'old', 'see', 'two', 'who', 'boy', 'did', 'she', 'use', 'her', 'now', 'him', 'than', 'like', 'time', 'very', 'when', 'much', 'would', 'there', 'these', 'them'].includes(word)) {
+                    wordFreq[word] = (wordFreq[word] || 0) + 1;
+                }
+            });
+            
+            Object.entries(wordFreq).forEach(([word, count]) => {
+                if (count >= 2 && word.length > 4) {
+                    foundKeywords.add(word);
+                }
+            });
+            
+            return Array.from(foundKeywords);
+        }
+
+        function calculateMatchScore(resumeText, jobText) {
+            const resumeKeywords = extractKeywords(resumeText);
+            const jobKeywords = extractKeywords(jobText);
+            
+            const matched = jobKeywords.filter(kw => 
+                resumeText.toLowerCase().includes(kw.toLowerCase())
+            );
+            
+            const missing = jobKeywords.filter(kw => 
+                !resumeText.toLowerCase().includes(kw.toLowerCase())
+            );
+            
+            const score = jobKeywords.length > 0 ? 
+                Math.round((matched.length / jobKeywords.length) * 100) : 0;
+            
+            const priorityMissing = missing.sort((a, b) => {
+                const aIsHard = ['python', 'sql', 'aws', 'javascript', 'excel', 'management', 'analysis'].some(h => a.includes(h));
+                const bIsHard = ['python', 'sql', 'aws', 'javascript', 'excel', 'management', 'analysis'].some(h => b.includes(h));
+                return bIsHard - aIsHard;
+            }).slice(0, 15);
+            
+            return {
+                score,
+                matched,
+                missing: priorityMissing,
+                totalJobKeywords: jobKeywords.length,
+                totalResumeKeywords: resumeKeywords.length
+            };
+        }
+
+        function runScan() {
+            const resume = document.getElementById('resumeInput').value;
+            const jobDesc = document.getElementById('jobInput').value;
+            
+            if (!resume.trim() || !jobDesc.trim()) {
+                alert('Please fill in both your resume and the job description to run the scan.');
+                return;
+            }
+            
+            document.getElementById('scanButton').disabled = true;
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            
+            setTimeout(() => {
+                const results = calculateMatchScore(resume, jobDesc);
+                displayResults(results);
+                
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('resultsSection').classList.remove('hidden');
+                document.getElementById('monetizationBanner').classList.remove('hidden');
+                document.getElementById('scanButton').disabled = false;
+                
+                document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 1500);
+        }
+
+        function displayResults(results) {
+            const scoreElement = document.getElementById('scorePercentage');
+            const circle = document.getElementById('scoreCircle');
+            const feedback = document.getElementById('scoreFeedback');
+            
+            let currentScore = 0;
+            const interval = setInterval(() => {
+                if (currentScore >= results.score) {
+                    clearInterval(interval);
+                } else {
+                    currentScore++;
+                    scoreElement.textContent = currentScore + '%';
+                }
+            }, 20);
+            
+            const circumference = 553;
+            const offset = circumference - (results.score / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+            
+            if (results.score >= 70) {
+                circle.style.stroke = 'url(#gradient)';
+                scoreElement.classList.remove('text-red-500', 'text-orange-400');
+                scoreElement.classList.add('text-green-400');
+                feedback.innerHTML = `
+                    <div class="glass-panel rounded-xl p-6 inline-block border-green-500/30 bg-green-500/5">
+                        <p class="text-green-400 font-display font-semibold text-lg mb-2 tracking-wide">OPTIMAL MATCH</p>
+                        <p class="text-gray-400 text-sm">Your resume is highly optimized for this position.</p>
+                    </div>
+                `;
+            } else if (results.score >= 50) {
+                circle.style.stroke = 'url(#gradient)';
+                scoreElement.classList.remove('text-green-400', 'text-red-500');
+                scoreElement.classList.add('text-orange-400');
+                feedback.innerHTML = `
+                    <div class="glass-panel rounded-xl p-6 inline-block border-orange-500/30 bg-orange-500/5">
+                        <p class="text-orange-400 font-display font-semibold text-lg mb-2 tracking-wide">MODERATE MATCH</p>
+                        <p class="text-gray-400 text-sm">Optimization recommended. Review missing keywords.</p>
+                    </div>
+                `;
+            } else {
+                circle.style.stroke = 'url(#gradient)';
+                scoreElement.classList.remove('text-green-400', 'text-orange-400');
+                scoreElement.classList.add('text-red-500');
+                feedback.innerHTML = `
+                    <div class="glass-panel rounded-xl p-6 inline-block border-red-500/30 bg-red-500/5">
+                        <p class="text-red-400 font-display font-semibold text-lg mb-2 tracking-wide">LOW MATCH</p>
+                        <p class="text-gray-400 text-sm">Significant optimization required for ATS compatibility.</p>
+                    </div>
+                `;
+            }
+            
+            const foundContainer = document.getElementById('foundKeywords');
+            foundContainer.innerHTML = '';
+            if (results.matched.length === 0) {
+                foundContainer.innerHTML = '<p class="text-gray-500 text-sm italic font-mono">No matching keywords detected.</p>';
+            } else {
+                results.matched.forEach(keyword => {
+                    const tag = document.createElement('span');
+                    tag.className = 'keyword-tag inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-blue-300';
+                    tag.textContent = keyword;
+                    foundContainer.appendChild(tag);
+                });
+            }
+            
+            const missingContainer = document.getElementById('missingKeywords');
+            missingContainer.innerHTML = '';
+            if (results.missing.length === 0) {
+                missingContainer.innerHTML = '<li class="text-green-400 text-sm font-medium font-mono flex items-center"><span class="mr-2">✓</span> All critical keywords present</li>';
+            } else {
+                results.missing.forEach(keyword => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center text-red-300 font-mono text-sm';
+                    li.innerHTML = `
+                        <span class="w-2 h-2 bg-red-500 rounded-full mr-3 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                        <span class="font-medium">${keyword}</span>
+                    `;
+                    missingContainer.appendChild(li);
+                });
+            }
+        }
+
+        function loadDemoData() {
+            const demoResume = `JOHN SMITH
+Senior Product Manager
+john.smith@email.com | (555) 123-4567 | LinkedIn: linkedin.com/in/johnsmith
+
+PROFESSIONAL SUMMARY
+Results-driven Product Manager with 8+ years of experience in SaaS and fintech. Proven track record of leading cross-functional teams to deliver innovative products that increase revenue and improve user experience. Expert in agile methodologies, data analysis, and stakeholder management.
+
+CORE COMPETENCIES
+• Product Strategy & Roadmapping • Agile/Scrum • Data Analysis • SQL • Python
+• A/B Testing • User Research • Stakeholder Management • Jira • Tableau
+• Team Leadership • Budget Management • Go-to-Market Strategy
+
+PROFESSIONAL EXPERIENCE
+
+SENIOR PRODUCT MANAGER | TechCorp Inc. | 2020 - Present
+• Lead product strategy for $50M B2B SaaS platform, managing roadmap and prioritization
+• Collaborate with engineering, design, and marketing teams to deliver features on time
+• Analyze user data using SQL and Python to identify growth opportunities (25% increase in engagement)
+• Manage stakeholder relationships with C-suite executives and key clients
+• Implement agile methodologies across 3 product teams, improving velocity by 40%
+
+PRODUCT MANAGER | StartupXYZ | 2017 - 2020
+• Developed and launched mobile app from concept to 1M+ downloads
+• Conducted user research and A/B testing to optimize conversion funnels
+• Managed $2M annual budget and P&L for product line
+• Led cross-functional team of 12 developers, designers, and QA engineers
+
+EDUCATION
+MBA, Business Administration | State University | 2017
+BS, Computer Science | Tech Institute | 2015
+
+CERTIFICATIONS
+• Certified Scrum Product Owner (CSPO)
+• Google Analytics Certified`;
+
+            const demoJob = `SENIOR PRODUCT MANAGER - FINTECH
+
+About Us:
+We are a leading fintech company revolutionizing payment solutions for businesses worldwide.
+
+Responsibilities:
+• Define and execute product strategy and roadmap for our core payment platform
+• Lead cross-functional teams including engineering, design, and data science
+• Conduct market research and competitive analysis to identify opportunities
+• Manage stakeholder communications and present to executive leadership
+• Analyze complex data sets using SQL, Python, and Tableau to drive decisions
+• Implement agile methodologies and scrum processes
+• Drive A/B testing and experimentation frameworks
+• Manage P&L and budget for product line
+• Collaborate with UX/UI teams on design decisions
+• Ensure compliance with financial regulations and security standards
+
+Requirements:
+• 5+ years of product management experience in fintech or SaaS
+• Strong technical background with SQL, Python, and data analysis skills
+• Experience with AWS or cloud platforms
+• Knowledge of machine learning and AI applications in finance
+• Excellent communication and leadership skills
+• MBA or equivalent business experience preferred
+• Certified Scrum Product Owner or similar agile certification
+• Experience with Jira, Confluence, and product analytics tools
+• Strong stakeholder management and presentation abilities
+• Knowledge of API design and microservices architecture
+• Familiarity with cybersecurity best practices
+• Experience with mobile app development (iOS/Android)
+• Understanding of blockchain and cryptocurrency technologies preferred`;
+
+            document.getElementById('resumeInput').value = demoResume;
+            document.getElementById('jobInput').value = demoJob;
+            
+            document.getElementById('resumeWordCount').textContent = demoResume.trim().split(/\s+/).filter(w => w.length > 0).length + ' words';
+            document.getElementById('jobWordCount').textContent = demoJob.trim().split(/\s+/).filter(w => w.length > 0).length + ' words';
+        }
+    </script>
+</body>
+</html>
